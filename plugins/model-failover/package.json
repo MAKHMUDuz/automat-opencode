@@ -1,0 +1,13 @@
+{
+  "name": "opencode-model-failover",
+  "version": "1.0.0",
+  "description": "Automatic model hand-off for OpenCode sessions on quota / rate-limit exhaustion",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  }
+}

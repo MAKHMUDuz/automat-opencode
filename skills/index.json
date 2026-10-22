@@ -1,0 +1,9 @@
+{
+  "skills": [
+    {
+      "name": "unattended-delivery",
+      "version": "1",
+      "files": ["SKILL.md"]
+    }
+  ]
+}
