@@ -7,6 +7,9 @@
   "exports": {
     ".": "./index.ts"
   },
+  "scripts": {
+    "test": "node --experimental-strip-types --test logic.test.ts"
+  },
   "dependencies": {
     "@opencode/plugin": "latest"
   }

@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin"
+import { isExhaustion, key, parseChain, pickNext } from "./logic"
 
 /**
  * model-failover — automatic model hand-off on quota / rate-limit exhaustion.
@@ -26,8 +27,6 @@ import { Plugin } from "@opencode/plugin"
  *   }
  */
 
-type ModelRef = { providerID: string; id: string }
-
 const DEFAULT_CHAIN = [
   "opencode/glm-5.3-flash-free",
   "opencode/minimax-m3.1-flash-free",
@@ -39,35 +38,11 @@ const DEFAULT_CHAIN = [
   "opencode/beam-free",
 ]
 
-/** Errors that mean "this model/account has no capacity left", not "this request is wrong". */
-const EXHAUSTION =
-  /(quota|usage limit|usage cap|insufficient (quota|credit|credits|balance|funds)|out of (credits?|tokens?)|free tier|billing|payment required|rate.?limit|too many requests|resource.?exhausted|capacity)/i
-
-/** Context overflow is recovered by compaction, never by swapping models. */
-const CONTEXT_OVERFLOW = /(context (window|length|limit)|maximum context|prompt is too long|too many tokens)/i
-
-const key = (ref: ModelRef) => `${ref.providerID}/${ref.id}`
-
-function parseRef(value: unknown): ModelRef | undefined {
-  if (typeof value !== "string") return undefined
-  const slash = value.indexOf("/")
-  if (slash <= 0 || slash === value.length - 1) return undefined
-  return { providerID: value.slice(0, slash), id: value.slice(slash + 1) }
-}
-
-function isExhaustion(error: { status?: number; message?: string; type?: string }) {
-  const message = error.message ?? ""
-  if (CONTEXT_OVERFLOW.test(message)) return false
-  if (error.status === 429 || error.status === 402) return true
-  if (/rate.?limit|quota|usage|insufficient/i.test(error.type ?? "")) return true
-  return EXHAUSTION.test(message)
-}
-
 export default Plugin.define({
   id: "model-failover",
   async setup(ctx) {
     const configured = Array.isArray(ctx.options?.chain) ? ctx.options.chain : DEFAULT_CHAIN
-    const chain = configured.map(parseRef).filter((ref): ref is ModelRef => ref !== undefined)
+    const chain = parseChain(configured)
     const cooldownMs = Number(ctx.options?.cooldownMs ?? 120_000)
 
     // 2.0.x returns { location, data }, later builds may return the array directly.
@@ -96,11 +71,7 @@ export default Plugin.define({
       const previous = lastSwitch.get(event.sessionID)
       if (previous && previous.from === current && Date.now() - previous.at < cooldownMs) return
 
-      const index = usable.findIndex((ref) => key(ref) === current)
-      const next =
-        index >= 0
-          ? usable[index + 1]
-          : usable.find((ref) => key(ref) !== current)
+      const next = pickNext(usable, current)
       if (!next) {
         log(`chain exhausted while on ${current}`)
         return
