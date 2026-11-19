@@ -93,3 +93,4 @@ and reports — that is the one place "keep going" yields.
 ## License
 
 [MIT](LICENSE)
+Last modified: 2026-11-20
